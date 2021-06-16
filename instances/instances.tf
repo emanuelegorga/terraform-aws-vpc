@@ -9,7 +9,7 @@ terraform {
 data "terraform_remote_state" "network_configuration" {
   backend = "s3"
 
-  config {
+  config = {
     bucket = var.remote_state_bucket
     key    = var.remote_state_key
     region = var.region
@@ -19,34 +19,34 @@ data "terraform_remote_state" "network_configuration" {
 resource "aws_security_group" "ec2_public_security_group" {
   name        = "EC2-Public-SG"
   description = "Internet reaching access for EC2 instances"
-  vpc_id      = data.terraform_remote_state.network_configuration.vpc_id
+  vpc_id      = data.terraform_remote_state.network_configuration.outputs.vpc_id
 
   ingress {
     from_port   = 80
     protocol    = "TCP"
     to_port     = 80
-    cidr_blocks = [0.0.0.0/0]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     from_port   = 22
     protocol    = "TCP"
     to_port     = 22
-    cidr_blocks = [2.44.140.117/32]
+    cidr_blocks = ["2.44.140.117/32"]
   }
 
   egress {
     from_port   = 0
     protocol    = "-1"
     to_port     = 0
-    cidr_blocks = [0.0.0.0/0]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
 resource "aws_security_group" "ec2_private_security_group" {
   name        = "EC2-Private-SG"
   description = "Only allow public SG resources to access these instances"
-  vpc_id      = data.terraform_remote_state.network_configuration.vpc_id
+  vpc_id      = data.terraform_remote_state.network_configuration.outputs.vpc_id
 
   ingress {
     from_port       = 0
@@ -59,7 +59,7 @@ resource "aws_security_group" "ec2_private_security_group" {
     from_port   = 80
     protocol    = "TCP"
     to_port     = 80
-    cidr_blocks = [0.0.0.0/0]
+    cidr_blocks = ["0.0.0.0/0"]
     description = "Allow health checking for instances using this SG"
   }
 
@@ -67,20 +67,20 @@ resource "aws_security_group" "ec2_private_security_group" {
     from_port   = 0
     protocol    = "-1"
     to_port     = 0
-    cidr_blocks = [0.0.0.0/0]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
 resource "aws_security_group" "elb_security_group" {
   name        = "ELB-SG"
   description = "ELB Security Group"
-  vpc_id      = data.terraform_remote_state.network_configuration.vpc_id
+  vpc_id      = data.terraform_remote_state.network_configuration.outputs.vpc_id
 
   ingress {
     from_port   = 0
     protocol    = "-1"
     to_port     = 0
-    cidr_blocks = [0.0.0.0/0]
+    cidr_blocks = ["0.0.0.0/0"]
     description = "Allow web traffic to load balancer"
   }
 
@@ -88,7 +88,7 @@ resource "aws_security_group" "elb_security_group" {
     from_port   = 0
     protocol    = "-1"
     to_port     = 0
-    cidr_blocks = [0.0.0.0/0]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
@@ -142,10 +142,10 @@ data "aws_ami" "launch_configuration_ami" {
 
   filter {
     name   = "owner-alias"
-    values = [amazon]
+    values = ["amazon"]
   }
 
-  owners = [amazon]
+  owners = ["amazon"]
 }
 
 resource "aws_launch_configuration" "ec2_private_launch_configuration" {
@@ -191,9 +191,9 @@ resource "aws_elb" "webapp_load_balancer" {
   internal        = false
   security_groups = [aws_security_group.elb_security_group.id]
   subnets         = [
-    data.terraform_remote_state.network_configuration.outputs.public_subnet_1_cidr,
-    data.terraform_remote_state.network_configuration.outputs.public_subnet_2_cidr,
-    data.terraform_remote_state.network_configuration.outputs.public_subnet_3_cidr
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_1_id,
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_2_id,
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_3_id
   ]
 
   listener {
@@ -217,9 +217,9 @@ resource "aws_elb" "backend_load_balancer" {
   internal        = true
   security_groups = [aws_security_group.elb_security_group.id]
   subnets         = [
-    data.terraform_remote_state.network_configuration.outputs.private_subnet_1_cidr,
-    data.terraform_remote_state.network_configuration.outputs.private_subnet_2_cidr,
-    data.terraform_remote_state.network_configuration.outputs.private_subnet_3_cidr
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_1_id,
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_2_id,
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_3_id
   ]
 
   listener {
@@ -241,9 +241,9 @@ resource "aws_elb" "backend_load_balancer" {
 resource "aws_autoscaling_group" "ec2_private_autoscaling_group" {
   name                = "Production-Backend-AutoScalingGroup"
   vpc_zone_identifier = [
-    data.terraform_remote_state.network_configuration.outputs.private_subnet_1_cidr,
-    data.terraform_remote_state.network_configuration.outputs.private_subnet_2_cidr,
-    data.terraform_remote_state.network_configuration.outputs.private_subnet_3_cidr
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_1_id,
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_2_id,
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_3_id
   ]
   max_size             = var.max_instance_size
   min_size             = var.min_instance_size
@@ -269,9 +269,9 @@ resource "aws_autoscaling_group" "ec2_private_autoscaling_group" {
 resource "aws_autoscaling_group" "ec2_public_autoscaling_group" {
   name                = "Production-WebApp-AutoScalingGroup"
   vpc_zone_identifier = [
-    data.terraform_remote_state.network_configuration.outputs.public_subnet_1_cidr,
-    data.terraform_remote_state.network_configuration.outputs.public_subnet_2_cidr,
-    data.terraform_remote_state.network_configuration.outputs.public_subnet_3_cidr
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_1_id,
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_2_id,
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_3_id
   ]
   max_size             = var.max_instance_size
   min_size             = var.min_instance_size
@@ -298,7 +298,7 @@ resource "aws_autoscaling_group" "ec2_public_autoscaling_group" {
 resource "aws_autoscaling_policy" "webapp_production_scaling_policy" {
   autoscaling_group_name   = aws_autoscaling_group.ec2_public_autoscaling_group.name
   name                     = "Production-WebApp-AutoScaling-Policy"
-  policy_type              = "TargetTrackingPolicy"
+  policy_type              = "TargetTrackingScaling"
   min_adjustment_magnitude = 1 # In case our metrics create an alarm to tell that we are receiving more traffic than usual, this is going to autoscale the instances adding a new one
 
   target_tracking_configuration {
@@ -312,7 +312,7 @@ resource "aws_autoscaling_policy" "webapp_production_scaling_policy" {
 resource "aws_autoscaling_policy" "backend_production_scaling_policy" {
   autoscaling_group_name   = aws_autoscaling_group.ec2_private_autoscaling_group.name
   name                     = "Production-Backend-AutoScaling-Policy"
-  policy_type              = "TargetTrackingPolicy"
+  policy_type              = "TargetTrackingScaling"
   min_adjustment_magnitude = 1
 
   target_tracking_configuration {
