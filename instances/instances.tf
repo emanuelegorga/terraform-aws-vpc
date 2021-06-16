@@ -191,9 +191,9 @@ resource "aws_elb" "webapp_load_balancer" {
   internal        = false
   security_groups = [aws_security_group.elb_security_group.id]
   subnets         = [
-    data.terraform_remote_state.network_configuration.public_subnet_1_id,
-    data.terraform_remote_state.network_configuration.public_subnet_2_id,
-    data.terraform_remote_state.network_configuration.public_subnet_3_id
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_1_cidr,
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_2_cidr,
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_3_cidr
   ]
 
   listener {
@@ -217,9 +217,9 @@ resource "aws_elb" "backend_load_balancer" {
   internal        = true
   security_groups = [aws_security_group.elb_security_group.id]
   subnets         = [
-    data.terraform_remote_state.network_configuration.private_subnet_1_id,
-    data.terraform_remote_state.network_configuration.private_subnet_2_id,
-    data.terraform_remote_state.network_configuration.private_subnet_3_id
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_1_cidr,
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_2_cidr,
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_3_cidr
   ]
 
   listener {
@@ -241,9 +241,9 @@ resource "aws_elb" "backend_load_balancer" {
 resource "aws_autoscaling_group" "ec2_private_autoscaling_group" {
   name                = "Production-Backend-AutoScalingGroup"
   vpc_zone_identifier = [
-    data.terraform_remote_state.network_configuration.private_subnet_1_id,
-    data.terraform_remote_state.network_configuration.private_subnet_2_id,
-    data.terraform_remote_state.network_configuration.private_subnet_3_id
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_1_cidr,
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_2_cidr,
+    data.terraform_remote_state.network_configuration.outputs.private_subnet_3_cidr
   ]
   max_size             = var.max_instance_size
   min_size             = var.min_instance_size
@@ -251,47 +251,52 @@ resource "aws_autoscaling_group" "ec2_private_autoscaling_group" {
   health_check_type    = "ELB"
   load_balancers       = [aws_elb.backend_load_balancer.name]
 
-  tag {
-    key                 = "Name"
-    propagate_at_launch = false
-    value               = "Backend-EC2-Instance"
-  }
+  tags = [
+    {
+      key                 = "Name"
+      propagate_at_launch = false
+      value               = "Backend-EC2-Instance"
+    },
+    {
+      key                 = "Type"
+      propagate_at_launch = false
+      value               = "Backend"
+    }
+  ]
 
-  tag {
-    key                 = "Type"
-    propagate_at_launch = false
-    value               = "Backend"
-  }
 }
 
-resource "aws_elb" "ec2_public_autoscaling_group" {
+resource "aws_autoscaling_group" "ec2_public_autoscaling_group" {
   name                = "Production-WebApp-AutoScalingGroup"
   vpc_zone_identifier = [
-    data.terraform_remote_state.network_configuration.public_subnet_1_id,
-    data.terraform_remote_state.network_configuration.public_subnet_2_id,
-    data.terraform_remote_state.network_configuration.public_subnet_3_id
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_1_cidr,
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_2_cidr,
+    data.terraform_remote_state.network_configuration.outputs.public_subnet_3_cidr
   ]
   max_size             = var.max_instance_size
   min_size             = var.min_instance_size
-  launch_configuration = aws_launch_configuration.ec2_private_launch_configuration.name
+  launch_configuration = aws_launch_configuration.ec2_public_launch_configuration.name
   health_check_type    = "ELB"
   load_balancers       = [aws_elb.webapp_load_balancer.name]
 
-  tag {
-    key                 = "Name"
-    propagate_at_launch = false
-    value               = "WebApp-EC2-Instance"
-  }
+  depends_on = [aws_launch_configuration.ec2_public_launch_configuration]
 
-  tag {
-    key                 = "Type"
-    propagate_at_launch = false
-    value               = "WebApp"
-  }
+  tags = [
+    {
+      key                 = "Name"
+      propagate_at_launch = false
+      value               = "WebApp-EC2-Instance"
+    },
+    {
+      key                 = "Type"
+      propagate_at_launch = false
+      value               = "WebApp"
+    }
+  ]
 }
 
 resource "aws_autoscaling_policy" "webapp_production_scaling_policy" {
-  autoscaling_group_name   = aws_autoscaling_group.ec2_private_autoscaling_group.name
+  autoscaling_group_name   = aws_autoscaling_group.ec2_public_autoscaling_group.name
   name                     = "Production-WebApp-AutoScaling-Policy"
   policy_type              = "TargetTrackingPolicy"
   min_adjustment_magnitude = 1 # In case our metrics create an alarm to tell that we are receiving more traffic than usual, this is going to autoscale the instances adding a new one
@@ -301,5 +306,19 @@ resource "aws_autoscaling_policy" "webapp_production_scaling_policy" {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
     target_value = 80.0 # average percentage of CPU utilization
+  }
+}
+
+resource "aws_autoscaling_policy" "backend_production_scaling_policy" {
+  autoscaling_group_name   = aws_autoscaling_group.ec2_private_autoscaling_group.name
+  name                     = "Production-Backend-AutoScaling-Policy"
+  policy_type              = "TargetTrackingPolicy"
+  min_adjustment_magnitude = 1
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 80.0
   }
 }
