@@ -92,5 +92,21 @@ resource "aws_security_group" "elb_security_group" {
   }
 }
 
-
-
+resource "aws_iam_role" "ec2_iam_role" {
+  name               = "EC2-IAM-Role"
+  assume_role_policy = <<EOF
+{
+  "Version" : "2012-10-17",
+  "Statement" :
+  [
+    {
+      "Effect" : "Allow",
+      "Principal" : {
+        "Service" : ["ec2.amazonaws.com", "application-autoscaling.amazonaws.com"]
+      },
+      "Action" : "sts:AssumeRole"
+    }
+  ]
+}
+  EOF
+}
