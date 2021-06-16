@@ -248,8 +248,8 @@ resource "aws_autoscaling_group" "ec2_private_autoscaling_group" {
   max_size             = var.max_instance_size
   min_size             = var.min_instance_size
   launch_configuration = aws_launch_configuration.ec2_private_launch_configuration.name
-  health_check_type = "ELB"
-  load_balancers = [aws_elb.backend_load_balancer.name]
+  health_check_type    = "ELB"
+  load_balancers       = [aws_elb.backend_load_balancer.name]
 
   tag {
     key                 = "Name"
@@ -260,6 +260,32 @@ resource "aws_autoscaling_group" "ec2_private_autoscaling_group" {
   tag {
     key                 = "Type"
     propagate_at_launch = false
-    value               = "Production"
+    value               = "Backend"
+  }
+}
+
+resource "aws_elb" "ec2_public_autoscaling_group" {
+  name                = "Production-WebApp-AutoScalingGroup"
+  vpc_zone_identifier = [
+    data.terraform_remote_state.network_configuration.public_subnet_1_id,
+    data.terraform_remote_state.network_configuration.public_subnet_2_id,
+    data.terraform_remote_state.network_configuration.public_subnet_3_id
+  ]
+  max_size             = var.max_instance_size
+  min_size             = var.min_instance_size
+  launch_configuration = aws_launch_configuration.ec2_private_launch_configuration.name
+  health_check_type    = "ELB"
+  load_balancers       = [aws_elb.webapp_load_balancer.name]
+
+  tag {
+    key                 = "Name"
+    propagate_at_launch = false
+    value               = "WebApp-EC2-Instance"
+  }
+
+  tag {
+    key                 = "Type"
+    propagate_at_launch = false
+    value               = "WebApp"
   }
 }
