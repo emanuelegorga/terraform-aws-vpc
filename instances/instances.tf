@@ -136,3 +136,18 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "EC2-IAM-Instance-Profile"
   role = aws_iam_role.ec2_iam_role.name
 }
+
+data "aws_ami" "launch_configuration_ami" {
+  most_recent = true
+
+  filter {
+    name = "owner-alias"
+    values = [amazon]
+  }
+
+  owners = [amazon]
+}
+
+
+
+
