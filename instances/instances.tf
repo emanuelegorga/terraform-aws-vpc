@@ -289,3 +289,17 @@ resource "aws_elb" "ec2_public_autoscaling_group" {
     value               = "WebApp"
   }
 }
+
+resource "aws_autoscaling_policy" "webapp_production_scaling_policy" {
+  autoscaling_group_name   = aws_autoscaling_group.ec2_private_autoscaling_group.name
+  name                     = "Production-WebApp-AutoScaling-Policy"
+  policy_type              = "TargetTrackingPolicy"
+  min_adjustment_magnitude = 1 # In case our metrics create an alarm to tell that we are receiving more traffic than usual, this is going to autoscale the instances adding a new one
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 80.0 # average percentage of CPU utilization
+  }
+}
