@@ -53,6 +53,7 @@ resource "aws_security_group" "ec2_private_security_group" {
     protocol        = "-1"
     to_port         = 0
     security_groups = [aws_security_group.ec2_public_security_group.id]
+    cidr_blocks = [ "10.0.0.7", "10.0.0.8", "10.0.0.9" ]
   }
 
   ingress {
@@ -207,7 +208,7 @@ resource "aws_elb" "webapp_load_balancer" {
     healthy_threshold   = 5
     interval            = 30
     target              = "HTTP:80/index.html"
-    timeout             = 10
+    timeout             = 25
     unhealthy_threshold = 5
   }
 }
@@ -233,7 +234,7 @@ resource "aws_elb" "backend_load_balancer" {
     healthy_threshold   = 5
     interval            = 30
     target              = "HTTP:80/index.html"
-    timeout             = 10
+    timeout             = 25
     unhealthy_threshold = 5
   }
 }

@@ -75,6 +75,36 @@ resource "aws_subnet" "private-subnet-3" {
   }
 }
 
+resource "aws_subnet" "management-subnet-1" {
+  cidr_block        = "10.0.0.7"
+  vpc_id            = aws_vpc.production-vpc.id
+  availability_zone = "eu-west-1a"
+
+  tags = {
+    Name = "Management-Subnet-1"
+  }
+}
+
+resource "aws_subnet" "management-subnet-2" {
+  cidr_block        = "10.0.0.8"
+  vpc_id            = aws_vpc.production-vpc.id
+  availability_zone = "eu-west-1b"
+
+  tags = {
+    Name = "Management-Subnet-2"
+  }
+}
+
+resource "aws_subnet" "management-subnet-3" {
+  cidr_block        = "10.0.0.9"
+  vpc_id            = aws_vpc.production-vpc.id
+  availability_zone = "eu-west-1c"
+
+  tags = {
+    Name = "Management-Subnet-3"
+  }
+}
+
 resource "aws_route_table" "public-route-table" {
   vpc_id = aws_vpc.production-vpc.id
   tags = {
